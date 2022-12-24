@@ -1,160 +1,105 @@
 <script setup>
-  import { ref } from 'vue'
+  import { ref, onMounted, computed, watch } from 'vue'
 
-  const showModal = ref(false);
-  const newNote = ref("");
-  const notes = ref([]);
+  const todos = ref([]);
+  const name = ref('');
 
-  const errorMessage = ref("");
+  const inputContent = ref('');
+  const inputCategory = ref(null);
 
-  function randomColor() {
-    return "hsl(" + Math.random() * 360 + ", 100%, 75%)";
-  }
+  const todosAsc = computed(() => todos.value.sort((a, b) => {
+    return b.createdAt - a.createdAt
+  }));
 
-  const addNote = () => {
-    if(newNote.value.length < 10) {
-      return errorMessage.value = "Name of note need to have at least 10 characters"
+  const addTodo = () => {
+    if(inputContent.value.trim() === '' || inputCategory.value === null) {
+      return
     }
-    notes.value.push({
-      id: Math.floor(Math.random() * 2219),
-      text: newNote.value,
-      date: new Date(),
-      backgroundColor: randomColor(),
-    });
-    showModal.value = false;
-    newNote.value = "";
-    errorMessage.value = "";
+    todos.value.push({
+      content: inputContent.value,
+      category: inputCategory.value,
+      createdAt: new Date().getTime(),
+      done: false,
+    })
+
+    inputContent.value = '';
+    inputCategory.value = null;
   }
 
+  const removeTodo = todo => {
+    todos.value = todos.value.filter(t => t !== todo)
+  }
+
+  watch(todos, (newVal) => {
+    localStorage.setItem('todos', JSON.stringify(newVal));
+    todos.value = JSON.parse(localStorage.getItem('todos')) || []
+  })
+
+
+  watch(name, (newVal) => {
+    localStorage.setItem('name', newVal)
+  }, {deep: true})
+
+  onMounted(() => {
+    name.value = localStorage.getItem("name") || ''
+  })
 </script>
 
 <template>
-  <main>
-    <div v-if="showModal" class="overlay">
-      <div class="modal">
-        <textarea placeholder="Write a note ..." v-model.trim="newNote" name="notes" id="notes" cols="30" rows="10"></textarea>
-        <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
-        <button @click="addNote()">
-          Add Note
-        </button>
-        <button class="close" @click="showModal = false, errorMessage = ''">
-          Close
-        </button>
-      </div>
-    </div>
-    <div class="container">
-      <header>
-        <h1>Notes</h1>
-        <button @click="showModal = true, errorMessage = ''">+</button>
-      </header>
-      <div class="cards-container">
-        <div v-for="note in notes" :key="note.id" class="card" :style="{backgroundColor: note.backgroundColor}">
-          <p class="main-text">
-            {{ note.text }}
-          </p>
-          <p class="date">
-            {{ note.date.toLocaleDateString("en-US") }}
-          </p>
+  <main class="app">
+    <section class="greeting">
+      <h2 class="title">
+        What's up <input type="text" placeholder="Name here" v-model="name">
+      </h2>
+    </section>
+
+    <section class="create-todo">
+      <h3>Create a todo</h3>
+      <form @submit.prevent="addTodo()">
+        <h4>
+          What's on your todo list?
+        </h4>
+        <input type="text" placeholder="e.g. make a video" v-model="inputContent">
+        <h4>Pick a category</h4>
+        <div class="options">
+
+          <label>
+            <input type="radio" name="category" value="business" v-model="inputCategory">
+            <span class="bubble business"></span>
+            <div>Business</div>
+          </label>
+
+          <label>
+            <input type="radio" name="category" value="personal" v-model="inputCategory">
+            <span class="bubble personal"></span>
+            <div>Personal</div>
+          </label>
+
+        </div>
+        <input type="submit" value="Add todo">
+      </form>
+    </section>
+    <section class="todo-list">
+      <h3>TODO LIST</h3>
+      <div class="list">
+        <div v-for="todo in todosAsc" :class="`todo-item ${todo.done && 'done'}`">
+          <label>
+            <input type="checkbox" v-model="todo.done">
+            <span :class="`bubble ${todo.category}`"></span>
+          </label>
+          <div class="todo-content">
+            <input type="text" v-model="todo.content">
+          </div>
+          <div class="actions">
+            <button class="delete" @click="removeTodo(todo)">Delete</button>
+          </div>
         </div>
       </div>
-    </div>
+    </section>
   </main>
 </template>
 
 <style scoped>
-  main {
-    height: 100vh;
-    width: 100vw;
-  }
-  .container {
-    max-width: 1000px;
-    padding: 10px;
-    margin: 0 auto;
-  }
-  header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  h1 {
-    font-weight: 700;
-    margin-bottom: 25px;
-    font-size: 75px;
-  }
-  header button {
-    background-color: black;
-    color: white;
-    font-weight: 700;
-    font-size: 20px;
-    width: 50px;
-    height: 50px;
-    cursor: pointer;
-    border-radius: 50%;
-    border: none;
-  }
-  .card {
-    width: 225px;
-    height: 225px;
-    background-color: aquamarine;
-    padding: 10px;
-    border-radius: 16px;
-    display: flex;
-    align-items: flex-start;
-    flex-direction: column;
-    justify-content: space-between;
-    margin-right: 20px;
-    margin-bottom: 20px;
-  }
-  .date {
-    font-size: 12px;
-    font-weight: 600;
-  }
-  .cards-container {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-  }
-  .overlay {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    z-index: 10;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .modal {
-    width: 750px;
-    background-color: aliceblue;
-    border-radius: 10px;
-    padding: 30px;
-    border: 2px solid black;
-    gap: 10px;
-    position: relative;
-    display: flex;
-    flex-direction: column;
-  }
-  .modal button {
-    background-color: brown;
-    color: white;
-    font-weight: 700;
-    font-size: 24px;
-    padding: 10px 20px;
-    cursor: pointer;
-    border: none;
-    border-radius: 16px;
-  }
-  .modal .close {
-    background-color: red;
-  }
-  textarea {
-    font-size: 18px;
-    padding: 20px;
-  }
-  .error-message {
-    color: red;
-    font-size: 18px;
-  }
+
 </style>
 
